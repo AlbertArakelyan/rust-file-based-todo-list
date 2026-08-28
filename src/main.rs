@@ -20,7 +20,7 @@ impl Task {
         // so the check and the slicing happen in one step.
         if let Some(title) = line.strip_prefix("[ ] ") {
             Some(Task {
-                done: fasle,
+                done: false,
                 title: title.to_string(),
             })
         } else if let Some(title) = line.strip_prefix("[x] ") {
@@ -50,6 +50,7 @@ enum Command {
 }
 
 // Takes the iterator by value (`mut args`) so we can consume it item by item.
+fn parse_args() {}
 
 fn main() {
     println!("Hello, world!");
