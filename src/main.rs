@@ -98,6 +98,26 @@ fn parse_args(mut args: env::Args) -> Result<Command, String> {
     }
 }
 
+fn store_path() -> PathBuf {
+    // Env override first, useful for testing against a throwaway file.
+    if let Ok(costum) = env::var("TODO_FILE") {
+        return PathBuf::from(costum);
+    }
+
+    let home = env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".todo.txt")
+}
+
+fn load(path: &Path) -> io::Result<Vec<Task>> {
+    match fs::read_to_string(path) {
+        // filter_map drops every None that parse returned, in one pass.
+        Ok(text) => Ok(text.lines().filter_map(Task::parse).collect()),
+        // Match guard: a missing file is the first run, not a failure.
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e),
+    }
+}
+
 fn main() {
     println!("Hello, world!");
 }
