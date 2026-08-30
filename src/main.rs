@@ -1,3 +1,4 @@
+use core::task;
 use std::env;
 use std::fs;
 use std::io;
@@ -118,6 +119,70 @@ fn load(path: &Path) -> io::Result<Vec<Task>> {
     }
 }
 
+// &[Task] instead of Vec<Task>: we only read it, so borrow a slice.
+fn save(path: &Path, tasks: &[Task]) -> io::Result<()> {
+    let text: String = tasks.iter().map(|t| t.to_line() + "\n").collect();
+    fs::write(path, text)
+}
+
+fn print_tasks(tasks: &[Task]) {
+    if tasks.is_empty() {
+        println!("nothing to do");
+        return;
+    }
+
+    // enumerate pairs each item with its index.
+    for (i, task) in tasks.iter().enumerate() {
+        println!("{:>3}. {}", i + 1, task.to_line());
+    }
+}
+
+fn run() -> Result<(), String> {
+    let command = parse_args(env::args())?;
+    let path = store_path();
+
+    // `mut` is opt-in: without it the Vec could not be pushed to or removed from.
+    let mut tasks = load(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+
+    // A match is an expression, so it can produce a value.
+    let changed = match command {
+        Command::List => false,
+
+        // `title` is moved out of the Command and into the new Task.
+        Command::Add(title) => {
+            tasks.push(Task { done: false, title });
+            true
+        }
+
+        Command::Done(i) => {
+            // get_mut returns Option, so an out-of-range number is handled,
+            // not a panic. ok_or turns None into our error type.
+            let task = tasks.get_mut(i).ok_or("no task with that number")?;
+            task.done = true;
+            true
+        }
+
+        Command::Remove(i) => {
+            if i >= tasks.len() {
+                return Err("no task with that number".into());
+            }
+            tasks.remove(i);
+            true
+        }
+    };
+
+    // Only touch the file when something actually changed.
+    if changed {
+        save(&path, &tasks).map_err(|e| format!("cannot write {}: {e}", path.display()))?;
+    }
+
+    print_tasks(&tasks);
+    Ok(())
+}
+
 fn main() {
-    println!("Hello, world!");
+    if let Err(msg) = run() {
+        eprintln!("todo: {msg}");
+        process::exit(1);
+    }
 }
